@@ -10,10 +10,29 @@ class ValidationError(DomainError): kind=ErrorKind.VALIDATION
 class NotFoundError(DomainError): kind=ErrorKind.NOT_FOUND
 class PermissionDenied(DomainError): kind=ErrorKind.FORBIDDEN
 class ConflictError(DomainError): kind=ErrorKind.CONFLICT
-SEVERITIES=['routine', 'attention', 'urgent', 'emergency']; STATES=['draft', 'checked', 'authorized', 'executed', 'closed']; ROLES=['duty_officer', 'chief_engineer', 'dispatcher', 'viewer']
+SEVERITIES=['routine', 'attention', 'urgent', 'emergency']; STATES=['draft', 'checked', 'authorized', 'executing', 'executed', 'closed']; ROLES=['duty_officer', 'chief_engineer', 'dispatcher', 'viewer']
+
+
 @dataclass(frozen=True)
 class Item:
     id:int; title:str; description:str; severity:str; quantity:float; threshold:float; status:str; version:int; external_ref:Optional[str]; created_by:str; created_at:str; updated_at:str
+
+
+@dataclass(frozen=True)
+class Hole:
+    id:int; item_id:int; hole_no:int; target_opening:float; target_basis:float; status:str; actual_opening:Optional[float]; receipt_id:Optional[int]; frozen_at:str; updated_at:str
+
+
+@dataclass(frozen=True)
+class ExecutionBatch:
+    id:int; item_id:int; seq:int; status:str; created_by:str; created_at:str
+
+
+@dataclass(frozen=True)
+class GateReceipt:
+    id:int; batch_id:int; item_id:int; hole_no:int; actual_opening:float; target_opening:float; status:str; external_ref:str; created_by:str; created_at:str
+
+
 @dataclass(frozen=True)
 class Record:
     id:int; item_id:int; kind:str; detail:str; status:str; external_ref:Optional[str]; created_by:str; created_at:str
@@ -33,6 +52,14 @@ def require_number(value,field,minimum=0.0):
     try: number=float(value)
     except (TypeError,ValueError): raise ValidationError(f"{field}必须是数字")
     if number<minimum: raise ValidationError(f"{field}不能小于{minimum}")
+    return number
+def require_hole_no(value):
+    if isinstance(value,bool) or not isinstance(value,int): raise ValidationError("hole_no必须是整数")
+    if value<1: raise ValidationError("hole_no必须是正整数")
+    return value
+def require_opening(value,field):
+    number=require_number(value,field,0.0)
+    if number>1.0: raise ValidationError(f"{field}不能超过1")
     return number
 def ensure_role(role,allowed):
     if role not in allowed: raise PermissionDenied("当前角色无权执行该操作")
