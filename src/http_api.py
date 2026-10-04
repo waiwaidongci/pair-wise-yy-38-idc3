@@ -76,27 +76,23 @@ def make_handler(service: Service, static_dir: str):
         def do_GET(self) -> None:
             try:
                 path = urlparse(self.path).path
+                actor, role = self._identity()
                 if path == "/health":
                     self._json(200, {"status": "ok"})
                 elif path == "/":
                     self._html(root / "index.html")
                 elif path == "/api/items":
-                    actor, role = self._identity()
-                    del actor
                     self._json(200, {"items": service.list_items(role)})
                 elif path.startswith("/api/items/") and path.endswith("/records"):
                     item_id = int(path.split("/")[3])
-                    actor, role = self._identity()
-                    del actor
                     self._json(200, {"records": service.list_records(item_id, role)})
+                elif path.startswith("/api/items/") and path.endswith("/batch"):
+                    item_id = int(path.split("/")[3])
+                    self._json(200, service.get_batch(item_id, role))
                 elif path.startswith("/api/items/"):
                     item_id = int(path.rsplit("/", 1)[-1])
-                    actor, role = self._identity()
-                    del actor
                     self._json(200, service.get_item(item_id, role))
                 elif path == "/api/audit":
-                    actor, role = self._identity()
-                    del actor
                     self._json(200, {"events": service.audit(role)})
                 else:
                     self._json(404, {"error": "not_found"})
@@ -110,6 +106,30 @@ def make_handler(service: Service, static_dir: str):
                 body = self._body()
                 if path == "/api/items":
                     self._json(201, service.create_item(body, actor, role))
+                elif path.startswith("/api/items/") and path.endswith("/batch/authorize"):
+                    item_id = int(path.split("/")[3])
+                    self._json(201, service.authorize_batch(item_id, body, actor, role))
+                elif path.startswith("/api/items/") and path.endswith("/batch/dispatch"):
+                    item_id = int(path.split("/")[3])
+                    self._json(200, service.dispatch_batch(item_id, body, actor, role))
+                elif path.startswith("/api/items/") and path.endswith("/batch/continue"):
+                    item_id = int(path.split("/")[3])
+                    self._json(200, service.continue_batch(item_id, body, actor, role))
+                elif path.startswith("/api/items/") and path.endswith("/batch/receipts"):
+                    item_id = int(path.split("/")[3])
+                    self._json(201, service.register_receipt(item_id, body, actor, role))
+                elif path.startswith("/api/items/") and path.endswith("/batch/feedback-lost"):
+                    item_id = int(path.split("/")[3])
+                    self._json(200, service.mark_feedback_lost(item_id, body, actor, role))
+                elif path.startswith("/api/items/") and path.endswith("/batch/recompute"):
+                    item_id = int(path.split("/")[3])
+                    self._json(200, service.recompute_basis(item_id, body, actor, role))
+                elif path.startswith("/api/items/") and path.endswith("/batch/settle"):
+                    item_id = int(path.split("/")[3])
+                    self._json(200, service.settle_batch(item_id, actor, role))
+                elif path.startswith("/api/items/") and path.endswith("/batch/close"):
+                    item_id = int(path.split("/")[3])
+                    self._json(200, service.close_instruction(item_id, body, actor, role))
                 elif path.startswith("/api/items/") and path.endswith("/records"):
                     item_id = int(path.split("/")[3])
                     self._json(201, service.add_record(item_id, body, actor, role))

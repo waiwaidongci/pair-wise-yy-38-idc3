@@ -1,1 +1,35 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>水库防汛调度与操作确认</title><style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;color:#17212b}pre{background:#f4f7f9;padding:1rem;overflow:auto}button{padding:.55rem 1rem}</style></head><body><h1>水库防汛调度与操作确认</h1><p>根据库位、入库流量、下游警戒和施工限制生成复核授权的泄洪指令</p><p>库位超过汛限或入库流量上升时提升紧迫度；授权前必须有复核记录，执行后仍要闭环现场反馈。</p><button onclick="loadItems()">刷新列表</button><pre id="out">使用X-Actor和X-Role请求头调用接口。</pre><script>async function loadItems(){const r=await fetch('/api/items',{headers:{'X-Actor':'demo','X-Role':'viewer'}});document.getElementById('out').textContent=JSON.stringify(await r.json(),null,2)}</script></body></html>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>水库防汛调度与闸门执行批次</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;max-width:980px;margin:2rem auto;padding:0 1rem;color:#17212b;line-height:1.6}
+code,pre{background:#f4f7f9;padding:.15rem .35rem;border-radius:4px}
+pre{padding:1rem;overflow:auto}
+.steps li{margin:.3rem 0}
+</style>
+</head>
+<body>
+<h1>水库防汛调度与闸门执行批次</h1>
+<p>授权时冻结每孔开度目标，逐孔登记实际开度；拒动留执行中、恢复只续办剩余孔；全部孔一致到位且无未关闭事项，总工才能关闭。</p>
+<ol class="steps">
+<li><code>draft → checked → authorized</code>：值班员复核、总工授权。</li>
+<li><code>POST /api/items/{id}/batch/authorize</code>：总工冻结每孔目标，指令进入 <code>executing</code>。</li>
+<li><code>POST /api/items/{id}/batch/dispatch</code>：调度员派工。</li>
+<li><code>POST /api/items/{id}/batch/receipts</code>：值班员逐孔回执（同孔并发先到生效；<code>client_token</code> 防重试重复）。</li>
+<li>拒动 / 回传失败：<code>feedback-lost</code> 后 <code>batch/continue</code> 同批次续办，已到位不重做。</li>
+<li>库位变化：<code>batch/recompute</code> 只重算未到位孔，已到位保留。</li>
+<li><code>batch/settle</code> 全部一致到位 → <code>executed</code>；<code>batch/close</code> 总工关闭。</li>
+</ol>
+<button onclick="loadItems()">刷新指令列表</button>
+<pre id="out">使用 X-Actor 和 X-Role 请求头调用接口。</pre>
+<script>
+async function loadItems(){
+  const r=await fetch('/api/items',{headers:{'X-Actor':'demo','X-Role':'viewer'}});
+  document.getElementById('out').textContent=JSON.stringify(await r.json(),null,2);
+}
+</script>
+</body>
+</html>
